@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 config = ConfigParser()
 
 # read config file
-config.read("/home/liveuser/Documents/AlgoSci//config.ini")
+config.read("/home/liveuser/Documents/AlgoSci/config.ini")
 algosci = config["ALGOSCI"]
 
 try:
@@ -39,7 +39,7 @@ def search_text(file_path, search_key):
 
 class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 	def __init__(self, request, client_address, server):
-		self.logger = logging.getLogger('ThreadedFileRequestHandler')
+		self.logger = logging.getLogger('ThreadedFileRequestHandler DEBUG')
 		self.logger.debug('__init__')
 		socketserver.StreamRequestHandler.__init__(self, request, client_address, server)
 		return
@@ -48,17 +48,14 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 		self.logger.debug('setup')
 		return socketserver.StreamRequestHandler.setup(self)
 		
-	# please help test this function	
 	def handle(self):
 		self.logger.debug('handle')
 
 		# client
 		try:
 			ip, port = self.client_address
-			assert(ip is not None and type(ip) is str)
-			assert(ip is not None and type(ip) is int)
-		except AssertionError:
-			print('Ensure ip is a string and port is an integer')
+		except :
+			print('Ensure ip and port address are provided')
 			
 		client = f"{ip} connected on {threading.current_thread().name}"
 		self.logger.debug(f'DEBUG: {client}')
@@ -73,19 +70,22 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 			# get the execution time
 			start = time.monotonic_ns()
 			try:
-				conditional = search_text(filepath, string)
+				# checks to see if carriage return was pressed
+				if string != '\n':
+					conditional = search_text(filepath, string)
+				else:
+					conditional = False
 			except TypeError:
 				print('Two argument are required, one was given')
 			end = time.monotonic_ns()
 			if conditional:
 				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
-				print('DEBUG: execution time: {}ms'.format((end - start)//1000000))
 				self.wfile.write(b"STRING EXISTS\n")
 			else:
 				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
-				print('DEBUG: execution time: {}ms'.format((end - start)//1000000))
+				print('execution time: {}ms'.format((end - start)//1000000))
 				self.wfile.write(b"STRING NOT FOUND\n")
-		print(f"DEBUG: {self.client_address} closed connection")
+		self.logger.debug(f"{self.client_address} closed connection")
 		
 	def finish(self):
 		self.logger.debug('finish')
@@ -94,7 +94,7 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 		
 class ThreadedFileServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 	def __init__(self, server_address, handler_class=ThreadedFileRequestHandler):
-		self.logger = logging.getLogger('ThreadedFileServer')
+		self.logger = logging.getLogger('ThreadedFileServer DEBUG')
 		self.logger.debug('__init__')
 		socketserver.TCPServer.__init__(self, server_address, handler_class)
 		return
@@ -103,10 +103,22 @@ class ThreadedFileServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 	allow_reuse_address = True
 	logging =  True
 	
+	
+def start_server(address):		
+	try:
+		with ThreadedFileServer(address, ThreadedFileRequestHandler) as server:
+			print("Server is running...")
+			server.serve_forever()
+	except Exception as e:
+		print(f'An Exception {e} Occured')
 
-try:
-	with ThreadedFileServer(("localhost", 49995), ThreadedFileRequestHandler) as server:
-		print("Server is running...")
-		server.serve_forever()
-except Exception as e:
-	print(f'An Exception {e} Occured')
+
+if __name__ =='__main__':
+	host = "localhost"
+	port = 49995
+	address = (host, port)
+	first = time.monotonic_ns()
+	start_server(address)
+	last = time.monotonic_ns()
+	print('main execution time: {}ms'.format((last - first)//1000000))
+
