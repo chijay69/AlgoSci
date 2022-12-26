@@ -1,21 +1,19 @@
-import asyncio
+""" A server module"""
+
 import time
 import logging
 import threading
 import socketserver
 from configparser import ConfigParser
 
-
 logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
-
 
 # initialise config object
 config = ConfigParser()
 
 # read config file
-config.read("/home/liveuser/Documents/AlgoSci/config.ini")
+config.read("/root/algosci/AlgoSci/config.ini")
 algosci = config["ALGOSCI"]
-
 
 try:
 	# get config values
@@ -27,63 +25,96 @@ try:
 except (KeyError, ValueError, NameError):
 	print("Cannot Parse configuration, check config file")
 	# raise Exception
-	
 
 def search_text(file_path, search_key):
-	if not search_key.endswith(' '):
-		if (search_key !=''):
-			try:
-				with open(file_path) as inF:
-					for line in inF:
-						if search_key in line:
-							return True
-					return False
-			except NameError:
-				print ('File does not exist, please comfirm file path')
-	return False
-
-
-async def handle_echo(reader, writer):
-	logger = logging.getLogger('handle_echo DEBUG')
 	try:
+		with open(file_path) as inF:
+			for line in inF:
+				if search_key in line:
+					return True
+			return False
+	except NameError:
+		print ('File does not exist, please comfirm file path')
+		
+
+class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
+	def __init__(self, request, client_address, server):
+		self.logger = logging.getLogger('ThreadedFileRequestHandler DEBUG')
+		self.logger.debug('__init__')
+		socketserver.StreamRequestHandler.__init__(self, request, client_address, server)
+		return
+		
+	def setup(self):
+		self.logger.debug('setup')
+		return socketserver.StreamRequestHandler.setup(self)
+		
+	def handle(self):
+		self.logger.debug('handle')
+
+		# client
+		try:
+			ip, port = self.client_address
+		except :
+			print('Ensure ip and port address are provided')
+			
+		client = f"{ip} connected on {threading.current_thread().name}"
+		self.logger.debug(f'DEBUG: {client}')
+		print(f'DEBUG: {client}')
+		
+		# accepts string from client connecction
 		while True:
-			try:
-				data = await reader.read(1024)
-				message = data.decode('utf-8').rstrip('\n')
-				addr = writer.get_extra_info('peername')
-			except:
-				print("No data available to be read")
-			
-			
-			reply = f"Received {message!r} from {addr!r}"
-			logger.debug(reply)
-			
+			string = self.rfile.readline().decode('utf-8')
+			self.logger.debug('recv() => "%s"', string)
+			if not string:
+				break
+			# get the execution time
 			start = time.monotonic_ns()
-			conditional = search_text(filepath, message)
+			try:
+				# checks to see if carriage return was pressed
+				if string != '\n':
+					conditional = search_text(filepath, string)
+				else:
+					conditional = False
+			except TypeError:
+				print('Two argument are required, one was given')
 			end = time.monotonic_ns()
-			
-			print('execution time: {}ms'.format((end - start)//1000000))
 			if conditional:
-				writer.write(b"STRING EXISTS\n")
-				await writer.drain()
+				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
+				self.wfile.write(b"STRING EXISTS\n")
 			else:
-				writer.write(b"STRING NOT FOUND\n")
-				await writer.drain()
-	except ConnectionError:
-		print("Client connection was terminated")
+				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
+				print('execution time: {}ms'.format((end - start)//1000000))
+				self.wfile.write(b"STRING NOT FOUND\n")
+		self.logger.debug(f"{self.client_address} closed connection")
+		
+	def finish(self):
+		self.logger.debug('finish')
+		return socketserver.StreamRequestHandler.finish(self)
+		
+		
+class ThreadedFileServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+	def __init__(self, server_address, handler_class=ThreadedFileRequestHandler):
+		self.logger = logging.getLogger('ThreadedFileServer DEBUG')
+		self.logger.debug('__init__')
+		socketserver.TCPServer.__init__(self, server_address, handler_class)
+		return
+	
+	daemon_threads =True
+	allow_reuse_address = True
+	logging =  True
+	
+	
+def start_server(address):		
+	try:
+		with ThreadedFileServer(address, ThreadedFileRequestHandler) as server:
+			print("Server is running...")
+			server.serve_forever()
+	except Exception as e:
+		print(f'An Exception {e} Occured')
 
 
-async def main():
-    server = await asyncio.start_server(
-        handle_echo, '127.0.0.1', 8888)
-
-    addrs = ', '.join(str(sock.getsockname()) for sock in server.sockets)
-    print(f'Serving on {addrs}')
-
-    async with server:
-        await server.serve_forever()
-
-first = time.monotonic_ns()
-asyncio.run(main())
-last = time.monotonic_ns()
-print('main execution time: {}ms'.format((last - first)//1000000))
+if __name__ =='__main__':
+	host = "127.0.0.1"
+	port = 49995
+	address = (host, port)
+	start_server(address)
