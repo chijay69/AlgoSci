@@ -1,68 +1,35 @@
-""" A client module"""
+"""A client module"""
 
-import socket
 import sys
+import asyncio
 
 
-def wait_and_read(client_obj):
+def read_msg():
 	try:
 		# reads the user input
 		line = sys.stdin.readline().rstrip('\x00') # strips x00 from EOL
-		# ncode the input and send it to server
-		client_obj.sendall(line.encode('utf-8'))
+		return line
 	except Exception as e:
 		print(f'{e} occured')
-
-
 		
-def client_connect(address):
-	try:
-		# create a socket (SOCK_STREAM means a TCP socket)
-		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-			# Connect to the server and send data
-			try:
-				#ip, port = address
-				sock.connect(address)
-				print("\nEnter search keyword:\n")
-				while True:
-					try:
-						wait_and_read(sock)
-					except TypeError:
-						print('No argument was passed to function')
-					while True:
-						try:
-							recieved = sock.recv(1024).decode('utf-8')
-							print(recieved, end="")
-							if len(recieved) < 1024:
-								break
-						except:
-							sock.close()
-			except TypeError as t:
-				print(f"got {type(address)} instead of tuple.\nDid you pass host_ip and port as argument?")
-				print(t)
-			
-	except ConnectionRefusedError:
-		print("Cannot establish connection due to Server not accepting connections")
-
 	
-		 
-def start_client(address):
+		
+		
+async def tcp_echo_client():
 	try:
-		try:
-			client_connect(address)
-		except TypeError:
-			print("Could not start up client.")
-			print('Ensure argument was passed to function')	
-	except KeyboardInterrupt:
-		sys.exit(0)
-		
-		
+		reader, writer = await asyncio.open_connection('127.0.0.1', 8888)
+	except ConnectionError:
+		print("Could not establish connection, Ensure address was passed.")
+	
+	while True:
+		message = read_msg()
+		if not message:
+			break
+		writer.write(message.encode('utf-8'))
+		await writer.drain()
+
+		data = await reader.read(100)
+		print(data.decode('utf-8'))
 
 
-
-if __name__ =='__main__':
-	host = "localhost"
-	port = 49995
-	address = (host, port)
-	start_client(("localhost",49995))
-
+asyncio.run(tcp_echo_client())

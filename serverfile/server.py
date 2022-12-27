@@ -110,7 +110,7 @@ def start_server(address):
 
 
 if __name__ =='__main__':
-	host = "127.0.0.1"
+	host = "10.182.0.2"
 	port = 49995
 	address = (host, port)
 	start_server(address)

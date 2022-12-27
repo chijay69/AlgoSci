@@ -1,0 +1,14 @@
+[Unit]
+Description=Demo Service
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /root/AlgoSci/serverfile/server.py
+Restart=always
+WorkingDirectory=/tmp
+Nice=19
+
+[Install]
+WantedBy=multi-user.target
