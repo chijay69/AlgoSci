@@ -11,32 +11,21 @@ logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 # initialise config object
 config = ConfigParser()
 
-# read config file
-config.read("/root/AlgoSci/config.ini")
-algosci = config["ALGOSCI"]
-
-try:
-	# get config values
-	PORT = int(algosci["port"])
-	HOST = algosci["host"]
-	REREAD_ON_QUERY = algosci.getboolean("reread_on_query")
-	filepath = algosci.get("linuxpath")
-
-except (KeyError, ValueError, NameError):
-	print("Cannot Parse configuration, check config file")
-	# raise Exception
+my_set = set()
 
 def search_text(file_path, search_key):
-	if not search_key.endswith(' '):
-		if (search_key !=''):
-			try:
-				with open(file_path) as inF:
-					for line in inF:
-						if search_key in line:
-							return True
-					return False
-			except NameError:
-				print ('File does not exist, please comfirm file path')
+	global my_set
+	if not search_key.endswith(' ') and (search_key !=''):
+		try:
+			with open(file_path) as f:
+				while True:
+					my_set.add(f.readline().rstrip())
+					if not f.readline():
+						break
+			if search_key in my_set:
+				return True
+		except NameError:
+			print ('File does not exist, please comfirm file path')
 	return False
 		
 
@@ -45,7 +34,6 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 		self.logger = logging.getLogger('ThreadedFileRequestHandler DEBUG')
 		self.logger.debug('__init__')
 		socketserver.StreamRequestHandler.__init__(self, request, client_address, server)
-		return
 		
 	def setup(self):
 		self.logger.debug('setup')
@@ -60,26 +48,43 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 		except :
 			print('Ensure ip and port address are provided')
 			
-		client = f"{ip} connected on {threading.current_thread().name}"
-		self.logger.debug(f'DEBUG: {client}')
+		client = f"{ip} connected on {port} on {threading.current_thread().name}"
+		self.logger.debug(f'{client}')
 		
 		# accepts string from client connecction
 		while True:
+			try:
+				# read config file
+				config.read("/home/unix/AlgoSci/config.ini")
+				algosci = config["ALGOSCI"]
+				# get config values
+				REREAD_ON_QUERY = algosci.getboolean("reread_on_query")
+				filepath = algosci.get("linuxpath")
+
+			except (KeyError, ValueError, NameError):
+				print("Cannot Parse configuration, check config file")
+
 			string = self.rfile.readline().decode('utf-8')
 			self.logger.debug('recv() => "%s"', string)
+
 			if not string:
 				break
+
 			# get the execution time
-			start = time.monotonic_ns()
 			string = string.strip('\n')
-			conditional = search_text(filepath, string)
+			start = time.monotonic_ns()
+
+			if REREAD_ON_QUERY == True:
+				conditional = search_text(filepath, string)
+			if REREAD_ON_QUERY == False :
+				conditional = string in my_set
+				
 			end = time.monotonic_ns()
 			if conditional:
 				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
 				self.wfile.write(b"STRING EXISTS\n")
 			else:
 				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
-				print('execution time: {}ms'.format((end - start)//1000000))
 				self.wfile.write(b"STRING NOT FOUND\n")
 		self.logger.debug(f"{self.client_address} closed connection")
 		
@@ -93,7 +98,6 @@ class ThreadedFileServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 		self.logger = logging.getLogger('ThreadedFileServer DEBUG')
 		self.logger.debug('__init__')
 		socketserver.TCPServer.__init__(self, server_address, handler_class)
-		return
 	
 	daemon_threads =True
 	allow_reuse_address = True
@@ -110,7 +114,7 @@ def start_server(address):
 
 
 if __name__ =='__main__':
-	host = "10.182.0.2"
+	host = "127.0.0.1"
 	port = 49995
 	address = (host, port)
 	start_server(address)
