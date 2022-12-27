@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 config = ConfigParser()
 
 # read config file
-config.read("/root/algosci/AlgoSci/config.ini")
+config.read("/root/AlgoSci/config.ini")
 algosci = config["ALGOSCI"]
 
 try:
@@ -27,14 +27,17 @@ except (KeyError, ValueError, NameError):
 	# raise Exception
 
 def search_text(file_path, search_key):
-	try:
-		with open(file_path) as inF:
-			for line in inF:
-				if search_key in line:
-					return True
-			return False
-	except NameError:
-		print ('File does not exist, please comfirm file path')
+	if not search_key.endswith(' '):
+		if (search_key !=''):
+			try:
+				with open(file_path) as inF:
+					for line in inF:
+						if search_key in line:
+							return True
+					return False
+			except NameError:
+				print ('File does not exist, please comfirm file path')
+	return False
 		
 
 class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
@@ -59,7 +62,6 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 			
 		client = f"{ip} connected on {threading.current_thread().name}"
 		self.logger.debug(f'DEBUG: {client}')
-		print(f'DEBUG: {client}')
 		
 		# accepts string from client connecction
 		while True:
@@ -69,14 +71,8 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 				break
 			# get the execution time
 			start = time.monotonic_ns()
-			try:
-				# checks to see if carriage return was pressed
-				if string != '\n':
-					conditional = search_text(filepath, string)
-				else:
-					conditional = False
-			except TypeError:
-				print('Two argument are required, one was given')
+			string = string.strip('\n')
+			conditional = search_text(filepath, string)
 			end = time.monotonic_ns()
 			if conditional:
 				self.logger.debug('execution time: {}ms'.format((end - start)//1000000))
