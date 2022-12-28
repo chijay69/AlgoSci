@@ -3,7 +3,7 @@ import threading
 import pytest
 import socketserver
 
-from client import client_connect, wait_and_read
+from serverfile.store.client import client_connect, wait_and_read
 
 
 def run_fake_server():
