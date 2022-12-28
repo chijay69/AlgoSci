@@ -64,7 +64,7 @@ class ThreadedFileRequestHandler(socketserver.StreamRequestHandler):
 		try:
 			# get the ip address and port of the connected client
 			ip, port = self.client_address
-		except :
+		except ConnectionError:
 			print('Ensure ip and port address are provided')
 			
 		client = f"{ip} connected on {port} on {threading.current_thread().name}"
